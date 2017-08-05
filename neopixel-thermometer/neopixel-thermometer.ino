@@ -1,3 +1,14 @@
+#include "LocalConfig.h"
+/*
+      //Example LocalConfig.h
+      #define WLAN_SSID             "My Wifi Ssid"
+      #define WLAN_PASS             "My Wifi Password"
+      #define WLAN_SECURITY         WLAN_SEC_WPA2
+      #define WLAN_IDLE_TIMEOUT_MS  3000
+      #define WEB_HOST              "example.org"
+      #define WEB_PAGE              "/mypage.php"
+*/
+
 
 #define debugPrint 1
 
