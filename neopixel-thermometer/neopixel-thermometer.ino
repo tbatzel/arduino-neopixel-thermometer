@@ -1,20 +1,6 @@
-#include "LocalConfig.h"
-/*
-      //Example LocalConfig.h
-      #define WLAN_SSID             "My Wifi Ssid"
-      #define WLAN_PASS             "My Wifi Password"
-      #define WLAN_SECURITY         WLAN_SEC_WPA2
-      #define WLAN_IDLE_TIMEOUT_MS  3000
-      #define WEB_HOST              "example.org"
-      #define WEB_PAGE              "/mypage.php"
-*/
-
-
 #define debugPrint 1
 
-#include <SoftwareSerial.h>
-SoftwareSerial serialInc(2, 8); // RX, TX   // Uses about 950 sketch, and 115 memory
-
+#define PRINTFREQ 3500
 
 // Adafruit NeoPixel Matrix
 #include <Adafruit_NeoPixel.h>
@@ -22,47 +8,22 @@ SoftwareSerial serialInc(2, 8); // RX, TX   // Uses about 950 sketch, and 115 me
 #include <Adafruit_GFX.h>
 #include <Fonts/FreeSans9pt7b.h>
 
-
 // Adafruit Temperature Sensors I2C Data
 #include <Wire.h>
 #include "Adafruit_MCP9808.h"
 
 // Hardware definitions
-#define lightSensorPin A0
-
+//#define lightSensorPin A0
 
 //Blinky Code
 #define DRAWWAIT 10
-
 #define MINBLINKY 0
 #define MAXBLINKY 128 //255
-#define PRINTFREQ 3500
 
 #define NeoMatrixPin 6
 #define NeoMatrixHeight 8
 #define NeoMatrixWidth 32         //32
 #define NeoMatrixNumPixels 30    // 60 Number of pixels to blink
-
-
-
-// Adafruit_NeoMatrix DECLARATION:
-// Parameter 1 = width of NeoPixel matrix
-// Parameter 2 = height of matrix
-// Parameter 3 = pin number (most are valid)
-// Parameter 4 = matrix layout flags, add together as needed:
-//   NEO_MATRIX_TOP, NEO_MATRIX_BOTTOM, NEO_MATRIX_LEFT, NEO_MATRIX_RIGHT:
-//     Position of the FIRST LED in the matrix; pick two, e.g.
-//     NEO_MATRIX_TOP + NEO_MATRIX_LEFT for the top-left corner.
-//   NEO_MATRIX_ROWS, NEO_MATRIX_COLUMNS: LEDs are arranged in horizontal
-//     rows or in vertical columns, respectively; pick one or the other.
-//   NEO_MATRIX_PROGRESSIVE, NEO_MATRIX_ZIGZAG: all rows/columns proceed
-//     in the same order, or alternate lines reverse direction; pick one.
-//   See example below for these values in action.
-// Parameter 5 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 
 
 // Initialize Hardware
@@ -119,8 +80,7 @@ pixel pixels[NeoMatrixNumPixels]; //Uses 420 bytes, at 60 pixels.  Each pixel is
 
 // Initial setup function
 void setup() {
-  Serial.begin(38400);
-  serialInc.begin(38400);
+  Serial.begin(9600);
 
   if (debugPrint) Serial.println(F("Initializing..."));
 
@@ -170,45 +130,33 @@ void loop() {
 
   matrix.fillScreen(colorBlack);
 
+  /*
   if (millis() % 8 == 0) {
     // Read the ambiant light level, and set the ledBright and ledDim levels.  // ***** needs to be smoother
     ReadLightLevel();
   }
+  */
 
   // Read the various temp sensors, set global tempFCurrent.
   ReadTempSensors();
 
-  // Check on timer, for update log / Min/Max values
+  // Check on timer, for update log
   unsigned long timeSince = TimeSinceLogUpdate();
 
+/*
   // Update MinMax temperature values, based on timer or being out of range
   if (timeSince >= logUpdateFreq) {
     char chr_tempFCurrent[7];
     dtostrf(tempFCurrent, 3, 2, chr_tempFCurrent);
     char chr_tempFCurrentSend[32]; //9
-    sprintf(chr_tempFCurrentSend, "\n<log>%s</log>\n", chr_tempFCurrent);  // start with \n later on
+    sprintf(chr_tempFCurrentSend, "\n<log>%s</log>\n", chr_tempFCurrent); 
 
-    if (debugPrint) Serial.print(F("serialInc.print   "));
+    //if (debugPrint) Serial.print(F("serialInc.print   "));
     if (debugPrint) Serial.println(chr_tempFCurrentSend);
-    serialInc.print(chr_tempFCurrentSend);     // Send temp to logging board
+    //serialInc.print(chr_tempFCurrentSend);     // Send temp to logging board
     timeLast = millis();    // Update the timeLast value to now
   }
-
-
-  // If the serial rx buffer has data, clear it out, then pull data again.
-  if (Serial.available()) {
-    delay(10); // helps ensure all of !!! arrives as one chunk. (10ms -> @38400 = 48 btyes, @9600, 12 bytes)
-    // Discard the existing data in the buffer
-    /*
-    while (Serial.available()) {
-      char c = Serial.read();
-    }
-    */
-    checkSerialHost();
-  }
-
-
-
+  */
 
 
 
@@ -247,21 +195,6 @@ void loop() {
   printCenter(chr_tempFCurrent_small);
 
 
-  // Code for showing the success count on the LED board, if using hardware serial.
-  /*
-    if((millis() % 5000 < 1000) && (serialRxFail || serialRxSuccess) )
-    {
-
-    char serialReport[10];  //1234-678
-    sprintf(serialReport, "%d-%d", serialRxSuccess, serialRxFail);
-    printCenter(serialReport);
-    }
-    else {
-    printCenter(chr_tempFCurrent_small);
-    }
-  */
-
-
 
   matrix.show();
 
@@ -275,33 +208,23 @@ void loop() {
 
 
 
+
+
+
 // ---------- Start of functions -------------------
 
 
 
-
+/*
 void ReadLightLevel() {
   int ligtSensorLuxValue = (RawToLux(analogRead(lightSensorPin)));
-  /*
-    if (debugPrint) {
-    Serial.print(F("Lux = "));
-    Serial.print(ligtSensorLuxValue);
-    }
-  */
   ligtSensorLuxValue = constrain(ligtSensorLuxValue, lightSensorLuxMin, lightSensorLuxMax);
-  /*
-    if (debugPrint) {
-    Serial.print(F(" Lux (constrain) = "));
-    Serial.println(ligtSensorLuxValue);
-    }
-  */
   uint8_t ledDim_goal = map(ligtSensorLuxValue, lightSensorLuxMin, lightSensorLuxMax, ledDimMin, ledDimMax);
   if (ledDim_goal > ledDim)        ledDim++;
   else if (ledDim_goal < ledDim)   ledDim--;
   matrix.setBrightness(ledDim);
-
 }
-
+*/
 
 
 
@@ -309,7 +232,6 @@ float RawToLux(int raw) {
   float lightSensorLogLux = raw * lightSensorLogRange / lightSensorRawRange;
   return pow(10, lightSensorLogLux);
 }
-
 
 
 
@@ -323,16 +245,6 @@ void ReadTempSensors() {
   // If the external sensor (temp0F) is "missing" don't use it.
   if (temp0F < 33)    tempFAvg = (temp1F + temp2F) / 2;
 
-  /*
-    if (debugPrint) {
-    Serial.print(F("Temp 0: ")); Serial.print(temp0F); Serial.print(F("*F   "));
-    Serial.print(F("Temp 1: ")); Serial.print(temp1F); Serial.print(F("*F   "));
-    Serial.print(F("Temp 2: ")); Serial.print(temp2F); Serial.print(F("*F"));
-    Serial.println();
-    Serial.print(F("Temperature: ")); Serial.print(tempFAvg); Serial.print(F("*F"));
-    Serial.println(F(""));
-    }
-  */
   tempFCurrent = tempFAvg; // Populate GlobalVar
 }
 
@@ -353,164 +265,6 @@ unsigned long TimeSinceLogUpdate() {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void checkSerialHost() {
-  unsigned int serialRxSuccessTemp = serialRxSuccessTemp;
-
-
-
-
-  if (Serial.available()) {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     Serial.available()"));
-  }
-  else {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     NOT: Serial.available()"));
-  }
-
-
-
-
-  Serial.println(F("")); printTimestamp(); Serial.println(F("     Clear out buffer"));
-  // clear out existing buffer
-    while (Serial.available()) {
-      char c = Serial.read();
-    }
-
-
-
-
-  if (Serial.available()) {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     Serial.available()"));
-  }
-  else {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     NOT: Serial.available()"));
-  }
-
-    
-  
-  Serial.println(F("")); printTimestamp(); Serial.println(F("     serialInc.print() - send get allow command"));
-  serialInc.print("\n<get>values</get>\n");
-
-
-
-/*
-  Serial.println(F("")); printTimestamp(); Serial.println(F("     delay()"));
-  // 30 characters @ 38400 = 7ms; @9600 = 25ms
-  delay(10);
-*/
-
-  
-
-  if (Serial.available()) {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     Serial.available()"));
-  }
-  else {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     NOT: Serial.available()"));
-  }
-
-
-
-  
-  unsigned long timebreak = millis() + 5000; 
-  while(!Serial.available())  {
-        Serial.println(F("")); printTimestamp(); Serial.println(F("     No serial, delay"));
-        if (timebreak <= millis()) {
-          Serial.println(F("")); printTimestamp(); Serial.println(F("     Break; from timeout"));
-          break;
-        }
-        delay(10);
-  }
-
-
-
-              
-  if (Serial.available()) {
-    Serial.println(F("")); printTimestamp(); Serial.println(F("     Serial Availiable"));
-
-    String serialRxData;
-    serialRxData.reserve(32);
-
-    while (Serial.available()) {
-      char c = Serial.read();
-      serialRxData += c;
-      if (c == '\n') {
-        Serial.println(F("")); printTimestamp(); Serial.println(F("     Parse Data"));
-        parseSerialRxData(serialRxData);
-        serialRxData = "";
-      }
-      else {
-        // If the last character isn't \n, and there is no new data, delay before exiting the while
-        timebreak = millis() + 1500;
-        while(!Serial.available())  {
-              Serial.println(F("")); printTimestamp(); Serial.println(F("     No serial, Not LF, delay"));
-              if (timebreak <= millis()) {
-                Serial.println(F("")); printTimestamp(); Serial.println(F("     Break; from timeout"));
-                break;
-              }
-              delay(10);
-        }        
-      }
-    }
-  }
-  
-
-  if (serialRxSuccess <= serialRxSuccessTemp) serialRxFail ++;
-  Serial.println(F(""));
-  Serial.print(F("     Success: "));
-  Serial.print(serialRxSuccess);
-  Serial.print(F(", Fail: "));
-  Serial.println(serialRxFail);
-  
-}
-
-
-
-
-void parseSerialRxData(String data) {
-  // Don't bother parsing if it's just 1 character
-  if (data.length() <= 1) {
-    return;
-  }
-  
-  if (debugPrint) printTimestamp();
-  if (debugPrint) Serial.println(F(""));
-  if (debugPrint) Serial.print(F("   data ("));
-  if (debugPrint) Serial.print(data.length());  
-  if (debugPrint) Serial.print(F(") = "));
-  if (debugPrint) Serial.println(data);
-
-
-
-  if (data.length() == 24) {    //23 + \n = 24    12.34,56.78,90.12,34.56\n
-    serialRxSuccess ++;
-    if (   (data.substring(2, 3) == ".")   && (data.substring(5, 6) == ",")
-           && (data.substring(8, 9) == ".")   && (data.substring(11, 12) == ",")
-           && (data.substring(14, 15) == ".") && (data.substring(17, 18) == ",")
-           && (data.substring(20, 21) == ".") ) {
-      if (debugPrint) Serial.println(F("   ***   ***   Found Everything!!!!!"));
-      val1_Min = data.substring(0, 5).toFloat();
-      val1_Max = data.substring(6, 11).toFloat();
-      val2_Min = data.substring(12, 17).toFloat();
-      val2_Max = data.substring(18, 23).toFloat();
-    }
-  }
-
-}
 
 
 
@@ -572,22 +326,6 @@ void initPixel(uint8_t num) {
 }
 
 
-
-/*
-  void serialEvent() {
-  while (Serial.available()) {
-    // get the new byte:
-    char inChar = (char)Serial.read();
-    // add it to the inputString:
-    serialRxData += inChar;
-    // if the incoming character is a newline, set a flag
-    // so the main loop can do something about it:
-    if (inChar == '\n') {
-      serialRxDataComplete = true;
-    }
-  }
-  }
-*/
 
 
 
