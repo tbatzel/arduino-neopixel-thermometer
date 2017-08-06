@@ -1,6 +1,25 @@
 #define debugPrint 1
-
 #define PRINTFREQ 3500
+
+
+
+// Adafruit ATWINC1500 WiFi
+#include <SPI.h>
+#include <WiFi101.h>
+#include "LocalConfig.h"
+      /*
+      //Example LocalConfig.h
+      #define WLAN_SSID             "My Wifi Ssid"
+      #define WLAN_PASS             "My Wifi Password"
+      #define WEB_HOST              "example.org"
+      #define WEB_PAGE              "/mypage.php"
+      */
+char ssid[] = WLAN_SSID; 
+char pass[] = WLAN_PASS;  
+int keyIndex = 0; 
+int status = WL_IDLE_STATUS;
+char server[] = WEB_HOST;
+
 
 // Adafruit NeoPixel Matrix
 #include <Adafruit_NeoPixel.h>
@@ -12,14 +31,14 @@
 #include <Wire.h>
 #include "Adafruit_MCP9808.h"
 
+
 // Hardware definitions
 //#define lightSensorPin A0
 
-//Blinky Code
+// Define Neopixel Matrix
 #define DRAWWAIT 10
 #define MINBLINKY 0
 #define MAXBLINKY 128 //255
-
 #define NeoMatrixPin 6
 #define NeoMatrixHeight 8
 #define NeoMatrixWidth 32         //32
@@ -31,35 +50,33 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(NeoMatrixWidth, NeoMatrixHeight, 
 Adafruit_MCP9808 tempsensor0 = Adafruit_MCP9808();
 Adafruit_MCP9808 tempsensor1 = Adafruit_MCP9808();
 Adafruit_MCP9808 tempsensor2 = Adafruit_MCP9808();
-
+WiFiClient client;
 
 // User definded settings
 #define ledDimMin  4              // Min LED brightness for dim content, out of 0-255
 #define ledDimMax   40            // Max LED brightness for dim content, out of 0-255
 #define lightSensorLuxMin 4       // Min clamp for measured room light value in lux
 #define lightSensorLuxMax 50      // Max clamp for measured room light value in lux
-#define logUpdateFreq 45000      // Frequency to record Min/Max temps.  1,000ms = 1 second
+#define logUpdateFreq 60000      // Frequency to record Min/Max temps.  1,000ms = 1 second
 
 
-
-// Global variables
-float tempFCurrent;
-unsigned long timeLast;
-uint8_t ledDim = ledDimMax;
+// Global Constants
 const float lightSensorRawRange = 1024; // 3.3v
 const float lightSensorLogRange = 5.0; // 3.3v = 10^5 lux
 const uint16_t colorBlack = matrix.Color(0, 0, 0);
-char chr_tempFCurrent_small[5];
 
+// Global Variables
 unsigned long nextPrint = 0;
+unsigned long timeLast;
+float tempFCurrent;
+char chr_tempFCurrent_small[5];
+uint8_t ledDim = ledDimMax;
+String webCurrentLine = "";  
+unsigned int WLAN_count_success = 0;  // **********
+unsigned int WLAN_count_fail = 0;  // **********
+unsigned int SQL_count_success = 0;// **********
 
-unsigned int serialRxSuccess = 0;
-unsigned int serialRxFail = 0;
 
-float val1_Min;
-float val1_Max;
-float val2_Min;
-float val2_Max;
 
 struct pixel
 {
@@ -81,15 +98,20 @@ pixel pixels[NeoMatrixNumPixels]; //Uses 420 bytes, at 60 pixels.  Each pixel is
 // Initial setup function
 void setup() {
   Serial.begin(9600);
-
+  WiFi.setPins(8,7,4);
+  
   if (debugPrint) Serial.println(F("Initializing..."));
-
 
   if (debugPrint) Serial.println(F("Wire.begin()"));
   Wire.begin();
 
+
+
+
   //Random Seed
   randomSeed(analogRead(A1));
+
+
 
   //LED Matrix initialization
   if (debugPrint) Serial.println(F("Initializing LED Matrix"));
@@ -99,6 +121,9 @@ void setup() {
   //matrix.setTextColor(matrix.Color(128, 128, 128));
   matrix.setTextColor(matrix.Color(32, 100, 128));
   matrix.fillScreen(colorBlack);
+  matrix.show(); 
+
+
 
   // Initialize the temp sensors
   if (debugPrint) Serial.println(F("Initializing Temp Sensors"));
@@ -114,6 +139,19 @@ void setup() {
     if (debugPrint) Serial.println(F("Couldn't find MCP9808 at 0x1A"));
     delay(1000);
   }
+
+
+
+  // Initialize the WiFi module
+  webCurrentLine.reserve(64);
+  while (! initializeWifi()) { 
+    delay(2500);
+    if (debugPrint) Serial.println(F("Re-Initializing Wifi from failed attempt..."));  
+  }  
+  delay(1500);
+
+  
+  
 
   nextPrint = millis() + PRINTFREQ;
 }
@@ -144,19 +182,40 @@ void loop() {
   unsigned long timeSince = TimeSinceLogUpdate();
 
 /*
-  // Update MinMax temperature values, based on timer or being out of range
+    if (debugPrint) Serial.println(F("")); 
+    if (debugPrint) printTimestamp();
+    if (debugPrint) Serial.println(F("")); 
+
+    logTempToWeb("73.21");
+    
+    if (debugPrint) Serial.println(F("")); 
+    if (debugPrint) printTimestamp();
+    if (debugPrint) Serial.println(F("")); 
+
+    if (debugPrint) Serial.print(F("     Success: ")); 
+    if (debugPrint) Serial.print(WLAN_count_success); // **********
+    if (debugPrint) Serial.print(F(", Fail: ")); 
+    if (debugPrint) Serial.print(WLAN_count_fail); // **********   
+    if (debugPrint) Serial.print(F("         SQL Insert: ")); 
+    if (debugPrint) Serial.println(SQL_count_success);     
+    if (debugPrint) Serial.println(F("")); 
+    if (debugPrint) Serial.println(F("")); 
+    if (debugPrint) Serial.println(F("")); 
+*/
+
+  // Update MinMax temperature values, based on timer
   if (timeSince >= logUpdateFreq) {
     char chr_tempFCurrent[7];
     dtostrf(tempFCurrent, 3, 2, chr_tempFCurrent);
-    char chr_tempFCurrentSend[32]; //9
-    sprintf(chr_tempFCurrentSend, "\n<log>%s</log>\n", chr_tempFCurrent); 
-
-    //if (debugPrint) Serial.print(F("serialInc.print   "));
-    if (debugPrint) Serial.println(chr_tempFCurrentSend);
-    //serialInc.print(chr_tempFCurrentSend);     // Send temp to logging board
+    
+    if (debugPrint) Serial.println("\n\nTimeToLog\n\n");    
+    if (debugPrint) Serial.println(chr_tempFCurrent);
+    
+    logTempToWeb(chr_tempFCurrent);
+    
     timeLast = millis();    // Update the timeLast value to now
   }
-  */
+ // Update MinMax temperature values, based on significant change
 
 
 
@@ -190,15 +249,28 @@ void loop() {
   }
 
 
-
   // Print the temp to the matrix
   printCenter(chr_tempFCurrent_small);
 
-
-
   matrix.show();
 
-  delay(20);
+
+
+
+  // Manage WIFI, re-initialize if needed
+  if (WLAN_count_fail > 15) {
+    if (debugPrint) Serial.println(F("Re-Initializing Wifi from failed count..."));
+    WLAN_count_fail = 0;
+    WLAN_count_success = 0;
+    SQL_count_success = 0;
+    // Initialize the WiFi module
+    while (! initializeWifi()) { 
+      delay(2500);
+      if (debugPrint) Serial.println(F("Re-Initializing Wifi from failed attempt..."));  
+    } 
+  }
+  
+  delay(20);  
 }
 
 // ---------- End of void loop() -------------------
@@ -225,6 +297,37 @@ void ReadLightLevel() {
   matrix.setBrightness(ledDim);
 }
 */
+
+
+
+
+
+void printCenter(String centerMessage) {
+  int loc = matrix.width() / 2;
+  loc = loc - ((centerMessage.length() * 6) / 2);
+  matrix.setCursor(loc, 0);
+  matrix.print(centerMessage);
+}
+
+
+
+
+//Randomizes a pixel's location and colors.  Prevents generating white colors.
+void initPixel(uint8_t num) {
+  pixels[num].x = random(matrix.width());
+  pixels[num].y = random(matrix.height());
+
+  uint8_t red = random(32, 128);
+  uint8_t blue = random(0, 96);
+  uint8_t green = ((128 - red) / 2) + ((96 - blue) / 2);
+
+  pixels[num].r = red;
+  pixels[num].g = green;
+  pixels[num].b = blue;
+}
+
+
+
 
 
 
@@ -268,6 +371,76 @@ unsigned long TimeSinceLogUpdate() {
 
 
 
+void logTempToWeb(String str_tempF){
+  char chr_tempF[7];
+  char WEB_URL[72];
+  str_tempF.toCharArray(chr_tempF,7);
+  sprintf(WEB_URL, "%s?temperature=%s", WEB_PAGE, chr_tempF);
+  
+  if(debugPrint) Serial.print(F("WEB_HOST: ")); 
+  if(debugPrint) Serial.println(WEB_HOST);
+  if(debugPrint) Serial.print(F("WEB_URL: ")); 
+  if(debugPrint) Serial.println(WEB_URL);
+
+  
+  Serial.println("\nStarting connection to server...");
+  // if you get a connection, report back via serial:
+  if (client.connect(server, 80)) { 
+    Serial.println("connected to server");
+    // Make a HTTP request:
+    client.print("GET "); client.print(WEB_URL); client.println(" HTTP/1.1");
+    client.print("Host: "); client.println(server);
+    client.println("Connection: close");
+    client.println();
+    WLAN_count_success++; // **********
+  }
+  else {
+    // if you couldn't make a connection:
+    WLAN_count_fail++;  // **********
+    Serial.println("connection failed");
+  }  
+
+
+    delay(150);
+
+
+
+
+    webCurrentLine = "";
+    bool SQL_success = 0; //*********
+  
+  // if there are incoming bytes available
+  // from the server, read them and print them:
+  while (client.available()) {
+    char c = client.read();
+    Serial.write(c);
+    
+    webCurrentLine += c;
+    if (c == '\n') {
+      webCurrentLine = "";      
+    }
+
+    if ( webCurrentLine.endsWith("<rows>1</rows>")) {
+      SQL_count_success++;    
+    }
+    
+  }
+
+  // if the server's disconnected, stop the client:
+  if (!client.connected()) {
+    Serial.println();
+    Serial.println("disconnecting from server.");
+    client.stop();
+  }
+
+}
+
+
+
+
+
+
+
 
 
 
@@ -301,29 +474,60 @@ void printTimestamp() {
 
 
 
-void printCenter(String centerMessage) {
-  int loc = matrix.width() / 2;
-  loc = loc - ((centerMessage.length() * 6) / 2);
-  matrix.setCursor(loc, 0);
-  matrix.print(centerMessage);
+bool initializeWifi() {
+  int wifiFailCount = 0; 
+  if (debugPrint) Serial.println(F("Initializing Wifi"));
+
+  // check for the presence of the shield:
+  if (WiFi.status() == WL_NO_SHIELD) {
+    Serial.println("WiFi shield not present");
+    // don't continue:
+    while (true);
+  }
+
+  // attempt to connect to Wifi network:
+  while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(ssid);
+    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+    status = WiFi.begin(ssid, pass);
+
+    // wait 10 seconds for connection:
+    delay(10000);
+  }
+  Serial.println("Connected to wifi");
+  printWifiStatus();
+
+  delay(500);  
+  return true;
+}
+
+
+void printWifiStatus() {
+  // print the SSID of the network you're attached to:
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+
+  // print your WiFi shield's IP address:
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
+
+  // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("signal strength (RSSI):");
+  Serial.print(rssi);
+  Serial.println(" dBm");
 }
 
 
 
 
-//Randomizes a pixel's location and colors.  Prevents generating white colors.
-void initPixel(uint8_t num) {
-  pixels[num].x = random(matrix.width());
-  pixels[num].y = random(matrix.height());
 
-  uint8_t red = random(32, 128);
-  uint8_t blue = random(0, 96);
-  uint8_t green = ((128 - red) / 2) + ((96 - blue) / 2);
 
-  pixels[num].r = red;
-  pixels[num].g = green;
-  pixels[num].b = blue;
-}
+
+
+
 
 
 
