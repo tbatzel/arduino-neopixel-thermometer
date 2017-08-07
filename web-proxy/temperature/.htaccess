@@ -1,0 +1,3 @@
+order deny,allow
+allow from 76.104.196.169
+deny from all

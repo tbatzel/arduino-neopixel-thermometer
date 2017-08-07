@@ -1,6 +1,6 @@
 <?php
 
-require("dbinfo.php");
+require("../dbinfo.php");
 /*
 	// Example dbinfo.php
 	$servername = "localhost";
