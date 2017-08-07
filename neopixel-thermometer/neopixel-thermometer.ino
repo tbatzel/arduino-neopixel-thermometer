@@ -1,6 +1,6 @@
 #define debugPrint 1
 #define PRINTFREQ 3500
-
+#define WLAN_IDLE_TIMEOUT_MS  3000
 
 
 // Adafruit ATWINC1500 WiFi
@@ -57,7 +57,7 @@ WiFiClient client;
 #define ledDimMax   40            // Max LED brightness for dim content, out of 0-255
 #define lightSensorLuxMin 4       // Min clamp for measured room light value in lux
 #define lightSensorLuxMax 50      // Max clamp for measured room light value in lux
-#define logUpdateFreq 60000      // Frequency to record Min/Max temps.  1,000ms = 1 second
+#define logUpdateFreq 300000      // Frequency to record Min/Max temps.  1,000ms = 1 second
 
 
 // Global Constants
@@ -181,16 +181,16 @@ void loop() {
   // Check on timer, for update log
   unsigned long timeSince = TimeSinceLogUpdate();
 
-/*
-    if (debugPrint) Serial.println(F("")); 
-    if (debugPrint) printTimestamp();
-    if (debugPrint) Serial.println(F("")); 
 
-    logTempToWeb("73.21");
+
+  // Update MinMax temperature values, based on timer
+  if (timeSince >= logUpdateFreq) {
+    char chr_tempFCurrent[7];
+    dtostrf(tempFCurrent, 3, 2, chr_tempFCurrent);
     
-    if (debugPrint) Serial.println(F("")); 
-    if (debugPrint) printTimestamp();
-    if (debugPrint) Serial.println(F("")); 
+    if (debugPrint) Serial.println(chr_tempFCurrent);
+    
+    logTempToWeb(chr_tempFCurrent);
 
     if (debugPrint) Serial.print(F("     Success: ")); 
     if (debugPrint) Serial.print(WLAN_count_success); // **********
@@ -199,20 +199,7 @@ void loop() {
     if (debugPrint) Serial.print(F("         SQL Insert: ")); 
     if (debugPrint) Serial.println(SQL_count_success);     
     if (debugPrint) Serial.println(F("")); 
-    if (debugPrint) Serial.println(F("")); 
-    if (debugPrint) Serial.println(F("")); 
-*/
-
-  // Update MinMax temperature values, based on timer
-  if (timeSince >= logUpdateFreq) {
-    char chr_tempFCurrent[7];
-    dtostrf(tempFCurrent, 3, 2, chr_tempFCurrent);
-    
-    if (debugPrint) Serial.println("\n\nTimeToLog\n\n");    
-    if (debugPrint) Serial.println(chr_tempFCurrent);
-    
-    logTempToWeb(chr_tempFCurrent);
-    
+  
     timeLast = millis();    // Update the timeLast value to now
   }
  // Update MinMax temperature values, based on significant change
@@ -372,6 +359,9 @@ unsigned long TimeSinceLogUpdate() {
 
 
 void logTempToWeb(String str_tempF){
+  // Close any connection before send a new request.
+  client.stop();
+  
   char chr_tempF[7];
   char WEB_URL[72];
   str_tempF.toCharArray(chr_tempF,7);
@@ -387,44 +377,54 @@ void logTempToWeb(String str_tempF){
   // if you get a connection, report back via serial:
   if (client.connect(server, 80)) { 
     Serial.println("connected to server");
+    
+    
     // Make a HTTP request:
     client.print("GET "); client.print(WEB_URL); client.println(" HTTP/1.1");
     client.print("Host: "); client.println(server);
     client.println("Connection: close");
-    client.println();
+    client.println();    
     WLAN_count_success++; // **********
   }
   else {
     // if you couldn't make a connection:
     WLAN_count_fail++;  // **********
     Serial.println("connection failed");
+
+    Serial.println("client.flush()");
+    client.flush(); // Clear the buffer on a fail
   }  
 
 
     delay(150);
 
 
-
-
-    webCurrentLine = "";
-    bool SQL_success = 0; //*********
+   
+  // Read response
+  webCurrentLine = "";
   
-  // if there are incoming bytes available
-  // from the server, read them and print them:
-  while (client.available()) {
-    char c = client.read();
-    Serial.write(c);
-    
-    webCurrentLine += c;
-    if (c == '\n') {
-      webCurrentLine = "";      
+    unsigned long lastRead = millis();
+    while (client.connected() && (millis() - lastRead < WLAN_IDLE_TIMEOUT_MS)) {
+          // if there are incoming bytes available  from the server, read them and print them:
+          while (client.available()) {
+            char c = client.read();
+            Serial.write(c);
+            lastRead = millis();
+            
+            webCurrentLine += c;
+            if (c == '\n') {
+              webCurrentLine = "";      
+            }
+        
+            if ( webCurrentLine.endsWith("<rows>1</rows>")) {
+              SQL_count_success++;    
+            }
+            
+          }     
     }
 
-    if ( webCurrentLine.endsWith("<rows>1</rows>")) {
-      SQL_count_success++;    
-    }
-    
-  }
+
+
 
   // if the server's disconnected, stop the client:
   if (!client.connected()) {
@@ -432,6 +432,10 @@ void logTempToWeb(String str_tempF){
     Serial.println("disconnecting from server.");
     client.stop();
   }
+
+
+
+
 
 }
 
