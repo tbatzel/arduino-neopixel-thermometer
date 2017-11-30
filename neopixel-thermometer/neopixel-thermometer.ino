@@ -2,6 +2,10 @@
 #define PRINTFREQ 3500
 #define WLAN_IDLE_TIMEOUT_MS  3000
 
+#define CrstPin1 10
+#define CrstPin2 11
+
+
 
 // Adafruit ATWINC1500 WiFi
 #include <SPI.h>
@@ -98,6 +102,10 @@ pixel pixels[NeoMatrixNumPixels]; //Uses 420 bytes, at 60 pixels.  Each pixel is
 // Initial setup function
 void setup() {
   Serial.begin(9600);
+
+  pinMode(CrstPin1, INPUT_PULLUP); // Crst Relay 1
+  pinMode(CrstPin2, INPUT_PULLUP); // Crst Relay 2
+  
   WiFi.setPins(8,7,4);
   
   if (debugPrint) Serial.println(F("Initializing..."));
@@ -168,6 +176,10 @@ void loop() {
 
   matrix.fillScreen(colorBlack);
 
+
+  int nightMode_1 = digitalRead(CrstPin1);
+  int nightMode_2 = digitalRead(CrstPin2);
+
   /*
   if (millis() % 8 == 0) {
     // Read the ambiant light level, and set the ledBright and ledDim levels.  // ***** needs to be smoother
@@ -206,17 +218,22 @@ void loop() {
 
 
 
-  // Dim the pixels in the array
+
+
+
+  // Dim the pixels in the array,
   for (uint8_t i = 0; i < NeoMatrixNumPixels; i++)
   {
     if (pixels[i].r > 0) pixels[i].r--;
     if (pixels[i].g > 0) pixels[i].g--;
     if (pixels[i].b > 0) pixels[i].b--;
-    if (pixels[i].r == 0 && pixels[i].g == 0 && pixels[i].b == 0)
+    if ( (pixels[i].r == 0 && pixels[i].g == 0 && pixels[i].b == 0) && (nightMode_1 == HIGH) )  // Don't draw new pixels at NightMode_1 = LOW
     {
       initPixel(i);
     }
-    matrix.drawPixel(pixels[i].x, pixels[i].y, matrix.Color(pixels[i].r, pixels[i].g, pixels[i].b));
+
+    matrix.drawPixel(pixels[i].x, pixels[i].y, matrix.Color(pixels[i].r, pixels[i].g, pixels[i].b));    
+  
   }
 
 
@@ -235,11 +252,16 @@ void loop() {
     nextPrint = millis() + PRINTFREQ;
   }
 
+  if (nightMode_1 == LOW) {  matrix.setTextColor(matrix.Color(64, 0, 0));}  // Switch the text color to somthing dimmer
+  else {matrix.setTextColor(matrix.Color(32, 100, 128)); }
+
 
   // Print the temp to the matrix
   printCenter(chr_tempFCurrent_small);
 
-  matrix.show();
+  if (nightMode_2 == LOW) {matrix.fillScreen(colorBlack);}
+
+  matrix.show(); // Don't show the pixels when NightMode2 = LOW
 
 
 
