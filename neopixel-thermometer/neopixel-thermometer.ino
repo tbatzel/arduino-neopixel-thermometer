@@ -15,14 +15,12 @@
       //Example LocalConfig.h
       #define WLAN_SSID             "My Wifi Ssid"
       #define WLAN_PASS             "My Wifi Password"
-      #define WEB_HOST              "example.org"
-      #define WEB_PAGE              "/mypage.php"
       */
 char ssid[] = WLAN_SSID; 
 char pass[] = WLAN_PASS;  
 int keyIndex = 0; 
 int status = WL_IDLE_STATUS;
-char server[] = WEB_HOST;
+
 
 
 // Adafruit NeoPixel Matrix
@@ -75,10 +73,9 @@ unsigned long timeLast;
 float tempFCurrent;
 char chr_tempFCurrent_small[5];
 uint8_t ledDim = ledDimMax;
-String webCurrentLine = "";  
 unsigned int WLAN_count_success = 0;  // **********
 unsigned int WLAN_count_fail = 0;  // **********
-unsigned int SQL_count_success = 0;// **********
+
 
 
 
@@ -151,7 +148,6 @@ void setup() {
 
 
   // Initialize the WiFi module
-  webCurrentLine.reserve(64);
   while (! initializeWifi()) { 
     delay(2500);
     if (debugPrint) Serial.println(F("Re-Initializing Wifi from failed attempt..."));  
@@ -202,15 +198,10 @@ void loop() {
     
     if (debugPrint) Serial.println(chr_tempFCurrent);
     
-    logTempToWeb(chr_tempFCurrent);
-
     if (debugPrint) Serial.print(F("     Success: ")); 
     if (debugPrint) Serial.print(WLAN_count_success); // **********
     if (debugPrint) Serial.print(F(", Fail: ")); 
     if (debugPrint) Serial.print(WLAN_count_fail); // **********   
-    if (debugPrint) Serial.print(F("         SQL Insert: ")); 
-    if (debugPrint) Serial.println(SQL_count_success);     
-    if (debugPrint) Serial.println(F("")); 
   
     timeLast = millis();    // Update the timeLast value to now
   }
@@ -271,7 +262,6 @@ void loop() {
     if (debugPrint) Serial.println(F("Re-Initializing Wifi from failed count..."));
     WLAN_count_fail = 0;
     WLAN_count_success = 0;
-    SQL_count_success = 0;
     // Initialize the WiFi module
     while (! initializeWifi()) { 
       delay(2500);
@@ -379,7 +369,7 @@ unsigned long TimeSinceLogUpdate() {
 
 
 
-
+/*
 void logTempToWeb(String str_tempF){
   // Close any connection before send a new request.
   client.stop();
@@ -460,7 +450,7 @@ void logTempToWeb(String str_tempF){
 
 
 }
-
+*/
 
 
 
