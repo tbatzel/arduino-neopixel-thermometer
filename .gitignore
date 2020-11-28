@@ -1,3 +1,2 @@
 LocalConfig.h
-web-proxy/.htaccess
-web-proxy/dbinfo.php
+arduino_secrets.h
