@@ -1,5 +1,6 @@
 #include "arduino_secrets.h" 
 #include <SPI.h>
+//#include <avr/dtostrf.h>
 
 #define debugPrint 1
 #define PRINTFREQ 10000
@@ -28,7 +29,7 @@ RHReliableDatagram rf69_manager(rf69, MY_ADDRESS);
 
 int16_t packetnum = 0;  // packet counter
 
-
+int16_t packetFail = 0;  
 
 //**************************************************/
 // Define and Initialize Adafruit NeoPixel Matrix
@@ -161,6 +162,8 @@ void loop() {
     // Send a RF request for the temperature
     char radiopacket[20] = "Temp?";
     itoa(packetnum++, radiopacket+13, 10);
+
+  //packetFail
   
     if (rf69_manager.sendtoWait((uint8_t *)radiopacket, strlen(radiopacket), DEST_ADDRESS)) {
       // Now wait for a reply from the server
@@ -179,12 +182,14 @@ void loop() {
           String tempFCurrentStr = String((char*)buf);          // buffer -> char array -> string
           float tempFCurrent = tempFCurrentStr.toFloat();       // string -> float
           dtostrf(tempFCurrent, 3, 1, chr_tempFCurrent_small);  // float to fixed length char array
-                
+          packetFail = 0;                
       } else {
         Serial.println("No reply, from other RF device.");
+        packetFail++;
       }
     } else {
       Serial.println("Sending failed (no ack)");
+      packetFail++;
     }
     nextPrint = millis() + PRINTFREQ;
   } // end  if (millis() > nextPrint)
@@ -192,8 +197,12 @@ void loop() {
 
   matrix.setTextColor(matrix.Color(32, 100, 128));  // nightime = 64,0,0
 
-  // Print the temp to the matrix
-  printCenter(chr_tempFCurrent_small);
+
+  if (packetFail < 10) {
+    // Print the temp to the matrix
+    printCenter(chr_tempFCurrent_small);    
+  }
+
 
 
   // nightime + display off = matrix.fillScreen(colorBlack);
