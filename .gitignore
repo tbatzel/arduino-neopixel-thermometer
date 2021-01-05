@@ -1,2 +1,4 @@
 LocalConfig.h
 arduino_secrets.h
+mySecrets.py
+RPI/__pycache__

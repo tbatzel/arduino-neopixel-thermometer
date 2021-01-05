@@ -11,9 +11,12 @@ import json
 import datetime
 
 
+from mySecrets import config_q, config_appid
+
+
 
 def getHttpData():
-    url = "https://api.openweathermap.org/data/2.5/weather?q=******************************"
+    url = "https://api.openweathermap.org/data/2.5/weather?q=" + config_q + "&appid=" + config_appid
     req = requests.get(url)
     try:
         jsonData = req.json()
@@ -27,7 +30,6 @@ def getHttpData():
     print(dataStore)
 
 
-
 #Setup - Digital Pin for Flag Notify
 flagNotify = digitalio.DigitalInOut(board.D18)
 flagNotify.direction = digitalio.Direction.OUTPUT
@@ -36,7 +38,6 @@ flagNotify.value = False
 # Setup - Data Dictionary
 dataStore = dict()
 dataStore["K"] = 0;
-
 
 # Setup - Serial Port
 ser = serial.Serial('/dev/ttyS0')
@@ -74,7 +75,7 @@ while True:
             if(line == "GET_TEMP"):
                 try:
                     #ser.write(bytes(json.dumps(dataStore["F"]), "utf-8"))
-                    ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB:message
+                    ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
 
 
                 except Exception as e:
@@ -82,3 +83,9 @@ while True:
             else:
                 ser.write(bytes("?", "utf-8"))
             ser.write(bytes("\n", "utf-8"))
+
+
+
+
+
+
