@@ -23,7 +23,6 @@ def getHttpData():
         dataStore["K"] = jsonData["main"]["temp"]
         dataStore["C"] = round(dataStore["K"]-273.15,2)
         dataStore["F"] = round(dataStore["C"]*(9/5) + 32,2)
-
     except Exception as e:
         print("Exception loading response data to JSON: ", e)
         return
@@ -45,7 +44,7 @@ ser.baudrate = 115200
 ser.timeout = 0.5
 
 # Setup - Web Get Interval
-updateInterval = 90
+updateInterval = 180
 updateLast = 0
 
 
@@ -66,7 +65,7 @@ while True:
     try:
         line = ser.readline().decode("utf-8")
     except Exception as e:
-        print("Exception: ", e)
+        print("Exception on ser.readline: ", e)
 
     # Do something if new serial data
     if len(line) >= 1:
@@ -76,10 +75,8 @@ while True:
                 try:
                     #ser.write(bytes(json.dumps(dataStore["F"]), "utf-8"))
                     ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
-
-
                 except Exception as e:
-                    print("Exception: ", e)
+                    print("Exception on ser.write: ", e)
             else:
                 ser.write(bytes("?", "utf-8"))
             ser.write(bytes("\n", "utf-8"))
