@@ -14,6 +14,7 @@ int serialRxSemaphoreFinal = 0;
 
 
 
+
 //**************************************************/
 // Define and Initialize Adafruit NeoPixel Matrix
 #include <Adafruit_NeoPixel.h>
@@ -54,7 +55,7 @@ char chr_message[5];
 
 
 
-
+int failCount = 0;
 
 
 // Initial setup function
@@ -139,9 +140,13 @@ void loop() {
     if (payload.charAt(6) == ':') {
       matrix.setTextColor(   colorFromHex(payload.substring(0,6))   );
       payload.substring(7).toCharArray(chr_message, 5);
+      failCount = 0;
     }
     else {
-      matrix.setTextColor(colorBlack);
+      failCount ++;
+      if (failCount > 3) {
+        matrix.setTextColor(colorBlack);
+      }
     }
     
        
