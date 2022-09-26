@@ -15,7 +15,20 @@ from mySecrets import config_q, config_appid
 
 
 
-def getHttpData():
+def clamp(x):
+    return max(0, min(x, 255))
+
+def rgb2hex(s):
+    s = s[s.find('(')+1:s.find(')')];
+    varhex = s.split(',');
+    for h in range(len(varhex)):
+        varhex[h] = '%02x' % int(varhex[h]);
+    return (varhex[0] + varhex[1] + varhex[2])
+
+
+
+
+def getHttpData_WeatherTemp():
     url = "https://api.openweathermap.org/data/2.5/weather?q=" + config_q + "&appid=" + config_appid
     req = requests.get(url)
     try:
@@ -27,6 +40,24 @@ def getHttpData():
         print("Exception loading response data to JSON: ", e)
         return
     print(dataStore)
+
+
+
+def getHttpData_LocalAirSensor():
+    url = "http://192.168.1.144/json"
+    req = requests.get(url)
+    try:
+        jsonData = req.json()
+        dataStore["aqi"] = min(jsonData["pm2.5_aqi"], jsonData["pm2.5_aqi_b"]);
+        dataStore["hex"] = rgb2hex(jsonData["p25aqic"]);
+    except Exception as e:
+        print("Exception loading response data to JSON: ", e)
+        return
+    print(dataStore)
+
+
+
+
 
 
 #Setup - Digital Pin for Flag Notify
@@ -53,7 +84,10 @@ while True:
 
     #Get new data from server based on timer
     if time.monotonic() - updateLast > updateInterval:
-        getHttpData()
+
+        getHttpData_WeatherTemp()
+        getHttpData_LocalAirSensor()
+
         updateLast = time.monotonic()
 
 
@@ -73,8 +107,8 @@ while True:
             line = line[:-1]
             if(line == "GET_TEMP"):
                 try:
-                    #ser.write(bytes(json.dumps(dataStore["F"]), "utf-8"))
-                    ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
+                    #ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
+                    ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["aqi"]), "utf-8")) # Hex RGB
                 except Exception as e:
                     print("Exception on ser.write: ", e)
             else:
