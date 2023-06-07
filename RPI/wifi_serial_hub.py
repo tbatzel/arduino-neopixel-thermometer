@@ -30,14 +30,17 @@ def rgb2hex(s):
 
 def getHttpData_WeatherTemp():
     url = "https://api.openweathermap.org/data/2.5/weather?q=" + config_q + "&appid=" + config_appid
-    req = requests.get(url)
     try:
+    req = requests.get(url)
         jsonData = req.json()
         dataStore["K"] = jsonData["main"]["temp"]
         dataStore["C"] = round(dataStore["K"]-273.15,2)
         dataStore["F"] = round(dataStore["C"]*(9/5) + 32,2)
     except Exception as e:
         print("Exception loading response data to JSON: ", e)
+        dataStore["K"] =  "?"
+        dataStore["C"] =  "?"
+        dataStore["F"] =  "?"
         return
     print(dataStore)
 
@@ -45,13 +48,15 @@ def getHttpData_WeatherTemp():
 
 def getHttpData_LocalAirSensor():
     url = "http://192.168.1.144/json"
-    req = requests.get(url)
     try:
+    req = requests.get(url)
         jsonData = req.json()
         dataStore["aqi"] = min(jsonData["pm2.5_aqi"], jsonData["pm2.5_aqi_b"]);
         dataStore["hex"] = rgb2hex(jsonData["p25aqic"]);
     except Exception as e:
         print("Exception loading response data to JSON: ", e)
+        dataStore["aqi"] = "?"
+        dataStore["hex"] = "999999"
         return
     print(dataStore)
 
@@ -108,7 +113,8 @@ while True:
             if(line == "GET_TEMP"):
                 try:
                     #ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
-                    ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["aqi"]), "utf-8")) # Hex RGB
+                    #ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["aqi"]), "utf-8")) # Hex RGB
+                    ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["F"]), "utf-8")) 
                 except Exception as e:
                     print("Exception on ser.write: ", e)
             else:
