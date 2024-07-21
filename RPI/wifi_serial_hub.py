@@ -27,6 +27,15 @@ def rgb2hex(s):
 
 
 
+def roundTemperature(F):
+    if float(F) >= 100:
+        return(round(float(F)))
+    else:
+        return(F)
+
+
+
+
 
 def getHttpData_WeatherTemp():
     url = "https://api.openweathermap.org/data/2.5/weather?q=" + config_q + "&appid=" + config_appid
@@ -47,7 +56,7 @@ def getHttpData_WeatherTemp():
 
 
 def getHttpData_LocalAirSensor():
-    url = "http://192.168.1.144/json"
+    url = "http://10.0.0.186/json"
     try:
         req = requests.get(url)
         jsonData = req.json()
@@ -112,9 +121,7 @@ while True:
             line = line[:-1]
             if(line == "GET_TEMP"):
                 try:
-                    #ser.write(bytes("206480:" + json.dumps(dataStore["F"]), "utf-8")) # Hex RGB
-                    #ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["aqi"]), "utf-8")) # Hex RGB
-                    ser.write(bytes(dataStore["hex"] + ":" + json.dumps(dataStore["F"]), "utf-8")) 
+                    ser.write(bytes(dataStore["hex"] + ":" + json.dumps(roundTemperature(dataStore["F"])), "utf-8")) 
                 except Exception as e:
                     print("Exception on ser.write: ", e)
             else:
